@@ -5,6 +5,13 @@
   "description": "Aggregate opencode session state for Herdr so multi-session panes report accurately.",
   "license": "MIT",
   "exports": "./src/index.js",
+  "files": [
+    "src"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anaypurohit0907/herdr-opencode-bridge.git"
+  },
   "scripts": {
     "test": "bun test"
   },
