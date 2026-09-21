@@ -72,8 +72,8 @@ Add them to your agent rows (`examples/herdr-sidebar.toml`):
 [ui.sidebar.agents]
 rows = [
   ["state_icon", "machine", "workspace", "tab"],
-  ["agent", { token = "$oc_sessions", dim = true }],
-  [{ token = "$oc_attention", fg = "#f9e2af", bold = true }],
+  ["agent"],
+  [{ token = "$oc_sessions", dim = true }, { token = "$oc_attention", fg = "#f9e2af", bold = true }],
 ]
 ```
 
