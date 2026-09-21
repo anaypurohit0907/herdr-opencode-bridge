@@ -1,5 +1,9 @@
 # opencode-herdr-bridge
 
+[![ci](https://github.com/anaypurohit0907/herdr-opencode-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/anaypurohit0907/herdr-opencode-bridge/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/opencode-herdr-bridge)](https://www.npmjs.com/package/opencode-herdr-bridge)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 Corrects how [Herdr](https://herdr.dev) sees [opencode](https://opencode.ai) panes.
 
 ## Problem
