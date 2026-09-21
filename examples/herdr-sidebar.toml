@@ -1,0 +1,9 @@
+# Example: show bridge tokens in the herdr sidebar agent rows.
+# Merge into ~/.config/herdr/config.toml, then: herdr server reload-config
+
+[ui.sidebar.agents]
+rows = [
+  ["state_icon", "machine", "workspace", "tab"],
+  ["agent", { token = "$oc_sessions", dim = true }],
+  ["{ token = \"$oc_attention\", fg = \"#f9e2af\", bold = true }"],
+]

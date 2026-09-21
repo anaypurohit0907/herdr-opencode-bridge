@@ -6,6 +6,7 @@ import {
   createModel,
   describeAggregate,
   hasSessions,
+  metadataTokens,
   registerSession,
   removeSession,
   rootOf,
@@ -113,5 +114,16 @@ describe("report message", () => {
       "1 blocked · 2 working · 3 idle",
     );
     expect(describeAggregate({ counts: { idle: 1 } })).toBe("1 idle");
+  });
+});
+
+describe("metadata tokens", () => {
+  test("summarizes sessions and surfaces waiting attention", () => {
+    expect(
+      metadataTokens({ counts: { working: 1, idle: 1 } }),
+    ).toEqual({ oc_sessions: "1 working · 1 idle", oc_attention: null });
+    expect(
+      metadataTokens({ counts: { blocked: 1, working: 2 } }),
+    ).toEqual({ oc_sessions: "1 blocked · 2 working", oc_attention: "waiting" });
   });
 });

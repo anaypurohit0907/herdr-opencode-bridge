@@ -62,6 +62,19 @@ export function reportAgent({ paneId, socketPath, source, agent, state, seq, mes
   return request(socketPath, "pane.report_agent", params);
 }
 
+export function reportMetadata({ paneId, socketPath, source, agent, tokens, ttlMs }) {
+  const params = { pane_id: paneId, source, agent, tokens };
+  if (ttlMs) params.ttl_ms = ttlMs;
+  return request(socketPath, "pane.report_metadata", params);
+}
+
+export function notify({ socketPath, title, body, sound }) {
+  const params = { title };
+  if (body) params.body = body;
+  if (sound) params.sound = sound;
+  return call(socketPath, "notification.show", params);
+}
+
 export function readPane(socketPath, paneId) {
   return call(socketPath, "pane.get", { pane_id: paneId });
 }

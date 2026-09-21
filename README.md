@@ -59,6 +59,30 @@ All state logic lives in `src/aggregate.js` with no opencode imports, so it is
 unit-testable. `src/index.js` is a thin V1 server-plugin wrapper; `src/socket.js`
 speaks the newline-delimited JSON pane protocol.
 
+## Sidebar tokens
+
+The bridge reports display-only metadata tokens for the herdr sidebar:
+
+- `$oc_sessions` — `2 working · 1 waiting` style summary of the pane's sessions
+- `$oc_attention` — `waiting` while any session is blocked, empty otherwise
+
+Add them to your agent rows (`examples/herdr-sidebar.toml`):
+
+```toml
+[ui.sidebar.agents]
+rows = [
+  ["state_icon", "machine", "workspace", "tab"],
+  ["agent", { token = "$oc_sessions", dim = true }],
+  [{ token = "$oc_attention", fg = "#f9e2af", bold = true }],
+]
+```
+
+Then `herdr server reload-config`.
+
+Set `HERDR_BRIDGE_NOTIFY=1` when launching opencode to also send a herdr
+`notification.show` (with request sound) the moment any session becomes blocked.
+Off by default because opencode's own `attention` config already plays sounds.
+
 ## Verification
 
 Live run with session A inside `sleep 90` and session B (`sleep 20`) finishing in
@@ -91,8 +115,6 @@ for the same problem while the official integration decides its own semantics.
 ## Roadmap
 
 - subscribe to herdr `events.subscribe` to correct drift event-driven instead of polling
-- `pane.report_metadata` tokens (`$oc_sessions`, `$oc_attention`) for sidebar rows
-- opt-in `notification.show` for background sessions that need attention
 - TUI-side selection reporting (V2) so session identity follows the visible session
 
 ## License

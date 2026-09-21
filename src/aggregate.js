@@ -162,3 +162,12 @@ export function describeAggregate({ counts }) {
   }
   return parts.join(" · ");
 }
+
+// Display-only tokens for the herdr sidebar. Null clears a token.
+export function metadataTokens(summary) {
+  const sessions = describeAggregate(summary);
+  return {
+    oc_sessions: sessions || null,
+    oc_attention: summary.counts.blocked ? "waiting" : null,
+  };
+}
