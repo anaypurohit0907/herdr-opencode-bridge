@@ -170,3 +170,8 @@ for the same problem while the official integration decides its own semantics.
 ## License
 
 MIT
+
+## Disclaimer
+
+Not affiliated with or endorsed by the OpenCode team or Herdr. "opencode" and
+"Herdr" are used only to describe what this plugin interoperates with.
