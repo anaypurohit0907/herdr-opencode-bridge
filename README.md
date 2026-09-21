@@ -35,6 +35,18 @@ State is only reported when the aggregate changes, so the socket stays quiet.
 ## Install
 
 ```bash
+npm install -g opencode-herdr-bridge
+```
+
+Or add it to opencode's plugin list in `~/.config/opencode/opencode.json`:
+
+```json
+{ "plugin": ["opencode-herdr-bridge@latest"] }
+```
+
+Or symlink the entry point directly:
+
+```bash
 git clone https://github.com/anaypurohit0907/herdr-opencode-bridge
 ln -s "$(pwd)/herdr-opencode-bridge/src/index.js" \
       ~/.config/opencode/plugins/zz-herdr-opencode-bridge.js
