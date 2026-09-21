@@ -6,6 +6,10 @@
 
 Corrects how [Herdr](https://herdr.dev) sees [opencode](https://opencode.ai) panes.
 
+## Demo
+
+![one opencode pane with two sessions; a session asks a question and the herdr sidebar shows opencode ×2 with waiting](demo/demo.gif)
+
 ## Problem
 
 One opencode process can hold several root sessions (`ctrl+x n`). Herdr tracks
