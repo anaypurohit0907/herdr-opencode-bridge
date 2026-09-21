@@ -65,14 +65,16 @@ export function rootOf(model, id) {
   return undefined;
 }
 
-function setState(model, rootID, state, now) {
+function setState(model, rootID, state, now, onTransition) {
   if (!rootID) return;
   const root = model.roots[rootID] ?? { state: "unknown", at: 0 };
-  if (root.state === state) {
+  const previous = root.state;
+  if (previous === state) {
     root.at = now;
     return;
   }
   model.roots[rootID] = { state, at: now };
+  onTransition?.(rootID, previous, state);
 }
 
 function touch(model, rootID, now) {
@@ -106,7 +108,7 @@ export function applyChatMessage(model, sessionID, now = Date.now()) {
   setState(model, rootID, "working", now);
 }
 
-export function applyEvent(model, event, now = Date.now()) {
+export function applyEvent(model, event, now = Date.now(), onTransition) {
   const type = event?.type;
   const properties = event?.properties ?? {};
   // Only session events carry session info. message.updated also exposes an
@@ -127,19 +129,29 @@ export function applyEvent(model, event, now = Date.now()) {
 
   const rootID = rootOf(model, sessionID);
   if (!rootID) return;
+  const record = (state) => setState(model, rootID, state, now, onTransition);
   if (sessionID !== rootID) {
     const childState = CHILD_EVENT_STATES[type];
-    if (childState) setState(model, rootID, childState, now);
+    if (childState) record(childState);
     return;
   }
 
   if (type === "session.status") {
     const state = statusToState(properties.status);
-    if (state) setState(model, rootID, state, now);
+    if (state) record(state);
     return;
   }
   const state = ROOT_EVENT_STATES[type];
-  if (state) setState(model, rootID, state, now);
+  if (state) record(state);
+}
+
+// Same as applyEvent, but reports each root state transition that happened.
+export function applyEventTracked(model, event, now = Date.now()) {
+  const transitions = [];
+  applyEvent(model, event, now, (id, from, to) => {
+    transitions.push({ id, from, to, title: model.sessions[id]?.title });
+  });
+  return transitions;
 }
 
 // Highest-urgency state across all known root sessions. "unknown" only wins
@@ -219,21 +231,39 @@ export function firstBlockedTitle(model) {
   return undefined;
 }
 
-export function blockedBody(model, summary) {
-  const count = summary.counts.blocked;
-  const title = firstBlockedTitle(model);
-  const sessions = count === 1 ? "1 session" : `${count} sessions`;
-  return title ? `${sessions} waiting · ${title}` : `${sessions} waiting`;
+export function sessionLabel(transition) {
+  const title = transition.title ? transition.title.slice(0, 40) : undefined;
+  return title ?? `session …${String(transition.id).slice(-6)}`;
 }
 
-// Pure notification decision: null means send nothing.
-export function notificationFor({ config, previousState, state, model, summary }) {
-  if (config.notify === "off") return null;
-  if (state === "blocked" && previousState !== "blocked") {
-    return { title: "opencode needs input", body: blockedBody(model, summary) };
+export function resolveSound(config, transition) {
+  if (config.sound === "none") return undefined;
+  if (config.sound === "auto") {
+    if (transition.to === "blocked") return "request";
+    if (transition.from === "working" && transition.to === "idle") return "done";
+    return undefined;
   }
-  if (config.notify === "all" && state === "idle" && previousState === "working") {
-    return { title: "opencode finished", body: describeAggregate(summary) };
+  return config.sound;
+}
+
+// Per-session notification decision: null means send nothing. Any session in
+// the pane can trigger this, whether or not it is the one being viewed.
+export function notificationForTransition({ config, transition }) {
+  if (config.notify === "off") return null;
+  const label = sessionLabel(transition);
+  if (transition.to === "blocked" && transition.from !== "blocked") {
+    return {
+      title: "opencode needs input",
+      body: `${label} waiting`,
+      sound: resolveSound(config, transition),
+    };
+  }
+  if (config.notify === "all" && transition.from === "working" && transition.to === "idle") {
+    return {
+      title: "opencode finished",
+      body: `${label} finished`,
+      sound: resolveSound(config, transition),
+    };
   }
   return null;
 }

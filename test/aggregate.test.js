@@ -3,15 +3,16 @@ import {
   aggregate,
   applyChatMessage,
   applyEvent,
-  blockedBody,
+  applyEventTracked,
   createModel,
   describeAggregate,
   displayAgent,
   hasSessions,
   metadataTokens,
-  notificationFor,
+  notificationForTransition,
   registerSession,
   removeSession,
+  resolveSound,
   rootOf,
   stateLabels,
 } from "../src/aggregate.js";
@@ -183,62 +184,116 @@ describe("state labels", () => {
   });
 });
 
-describe("notifications", () => {
-  const config = { notify: "blocked", sound: "none" };
-  test("fires when a session becomes blocked", () => {
-    const model = createModel();
-    root(model, "A");
-    registerSession(model, { id: "A", title: "auth refactor" });
-    event(model, "permission.asked", "A", {});
-    const summary = aggregate(model);
-    expect(
-      notificationFor({ config, previousState: "working", state: "blocked", model, summary }),
-    ).toEqual({
-      title: "opencode needs input",
-      body: "1 session waiting · auth refactor",
-    });
-  });
-  test("stays quiet when already blocked or disabled", () => {
-    const model = createModel();
-    root(model, "A");
-    const summary = aggregate(model);
-    expect(
-      notificationFor({ config, previousState: "blocked", state: "blocked", model, summary }),
-    ).toBeNull();
-    expect(
-      notificationFor({
-        config: { notify: "off" },
-        previousState: "working",
-        state: "blocked",
-        model,
-        summary,
-      }),
-    ).toBeNull();
-  });
-  test("optional finished notification only with notify=all", () => {
-    const model = createModel();
-    root(model, "A");
-    status(model, "A", "idle");
-    const summary = aggregate(model);
-    expect(
-      notificationFor({ config, previousState: "working", state: "idle", model, summary }),
-    ).toBeNull();
-    expect(
-      notificationFor({
-        config: { notify: "all" },
-        previousState: "working",
-        state: "idle",
-        model,
-        summary,
-      }),
-    ).toEqual({ title: "opencode finished", body: "1 idle" });
-  });
-  test("blocked body counts sessions", () => {
+describe("session transitions", () => {
+  test("reports a background session finishing while another works", () => {
     const model = createModel();
     root(model, "A");
     root(model, "B");
-    event(model, "permission.asked", "A", {});
-    event(model, "question.asked", "B", {});
-    expect(blockedBody(model, aggregate(model))).toBe("2 sessions waiting");
+    registerSession(model, { id: "B", title: "auth refactor" });
+    applyChatMessage(model, "A", 1);
+    applyChatMessage(model, "B", 2);
+    const transitions = applyEventTracked(model, {
+      type: "session.idle",
+      properties: { sessionID: "B" },
+    });
+    expect(transitions).toEqual([
+      { id: "B", from: "working", to: "idle", title: "auth refactor" },
+    ]);
+  });
+
+  test("reports blocked transitions with the session title", () => {
+    const model = createModel();
+    root(model, "A");
+    registerSession(model, { id: "A", title: "docs pass" });
+    applyChatMessage(model, "A", 1);
+    const transitions = applyEventTracked(model, {
+      type: "permission.asked",
+      properties: { sessionID: "A" },
+    });
+    expect(transitions[0]).toMatchObject({ from: "working", to: "blocked" });
+  });
+
+  test("no transition when the state does not change", () => {
+    const model = createModel();
+    root(model, "A");
+    applyChatMessage(model, "A", 1);
+    const transitions = applyEventTracked(model, {
+      type: "tool.execute.after",
+      properties: { sessionID: "A" },
+    });
+    expect(transitions).toEqual([]);
+  });
+});
+
+describe("notifications", () => {
+  const config = { notify: "all", sound: "auto" };
+
+  test("dings when any session finishes, even if another is working", () => {
+    const model = createModel();
+    root(model, "A");
+    root(model, "B");
+    registerSession(model, { id: "B", title: "auth refactor" });
+    applyChatMessage(model, "A", 1);
+    applyChatMessage(model, "B", 2);
+    const [transition] = applyEventTracked(model, {
+      type: "session.idle",
+      properties: { sessionID: "B" },
+    });
+    expect(notificationForTransition({ config, transition })).toEqual({
+      title: "opencode finished",
+      body: "auth refactor finished",
+      sound: "done",
+    });
+  });
+
+  test("dings with request sound when a session is waiting", () => {
+    const model = createModel();
+    root(model, "A");
+    registerSession(model, { id: "A", title: "docs pass" });
+    applyChatMessage(model, "A", 1);
+    const [transition] = applyEventTracked(model, {
+      type: "permission.asked",
+      properties: { sessionID: "A" },
+    });
+    expect(notificationForTransition({ config, transition })).toEqual({
+      title: "opencode needs input",
+      body: "docs pass waiting",
+      sound: "request",
+    });
+  });
+
+  test("notify=blocked suppresses finish dings", () => {
+    const model = createModel();
+    root(model, "A");
+    applyChatMessage(model, "A", 1);
+    const [transition] = applyEventTracked(model, {
+      type: "session.idle",
+      properties: { sessionID: "A" },
+    });
+    expect(
+      notificationForTransition({ config: { notify: "blocked", sound: "auto" }, transition }),
+    ).toBeNull();
+  });
+
+  test("falls back to a short session id without a title", () => {
+    const model = createModel();
+    root(model, "ses_f50209cf4ffe1df3fU3J0M71Xe");
+    applyChatMessage(model, "ses_f50209cf4ffe1df3fU3J0M71Xe", 1);
+    const [transition] = applyEventTracked(model, {
+      type: "session.idle",
+      properties: { sessionID: "ses_f50209cf4ffe1df3fU3J0M71Xe" },
+    });
+    expect(notificationForTransition({ config, transition }).body).toBe(
+      "session …0M71Xe finished",
+    );
+  });
+
+  test("sound config resolution", () => {
+    const finished = { from: "working", to: "idle" };
+    const blocked = { from: "working", to: "blocked" };
+    expect(resolveSound({ sound: "none" }, finished)).toBeUndefined();
+    expect(resolveSound({ sound: "auto" }, finished)).toBe("done");
+    expect(resolveSound({ sound: "auto" }, blocked)).toBe("request");
+    expect(resolveSound({ sound: "request" }, finished)).toBe("request");
   });
 });

@@ -62,11 +62,13 @@ Optional file at `~/.config/opencode/herdr-bridge.json`:
 ```
 
 - `notify`: `"off"` | `"blocked"` (default) | `"all"` — `all` also notifies when
-  every session goes idle after working.
-- `sound`: `"none"` (default) | `"done"` | `"request"` — Herdr notification
-  sound. Left off by default because opencode's own `attention` sounds already
-  cover this; turn it on if you use the bridge without `attention`.
+  any session finishes, whether or not it is the one you are viewing.
+- `sound`: `"none"` | `"auto"` (default) | `"done"` | `"request"` — `auto` uses
+  the request sound for waiting sessions and the done sound for finished ones.
 - `display`: `false` disables the `opencode ×N` label.
+
+Notifications are per session and name the session title, so a background session
+finishing or asking a question pings you while you work in another session.
 
 Legacy env overrides still work: `HERDR_BRIDGE_NOTIFY=1`, `HERDR_BRIDGE_SOUND`,
 `HERDR_BRIDGE_DISPLAY=0`, plus `HERDR_BRIDGE_DEBUG=1` for tracing.

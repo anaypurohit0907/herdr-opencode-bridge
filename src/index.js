@@ -2,13 +2,13 @@ import { appendFileSync } from "node:fs";
 import {
   aggregate,
   applyChatMessage,
-  applyEvent,
+  applyEventTracked,
   createModel,
   describeAggregate,
   displayAgent,
   hasSessions,
   metadataTokens,
-  notificationFor,
+  notificationForTransition,
   stateLabels,
 } from "./aggregate.js";
 import { loadConfig } from "./config.js";
@@ -60,7 +60,6 @@ export const HerdrOpencodeBridge = async () => {
   let seq = Date.now() * 1000;
   let lastReport;
   let lastMeta;
-  let lastState;
   let chain = Promise.resolve();
   let verifyTimer;
   let activeTimer;
@@ -151,26 +150,6 @@ export const HerdrOpencodeBridge = async () => {
           )
           .catch(() => {});
       }
-      const notification = notificationFor({
-        config,
-        previousState: lastState,
-        state: summary.state,
-        model,
-        summary,
-      });
-      if (notification) {
-        chain = chain
-          .then(() =>
-            notify({
-              socketPath,
-              title: notification.title,
-              body: notification.body,
-              sound: config.sound !== "none" ? config.sound : undefined,
-            }),
-          )
-          .catch(() => {});
-      }
-      lastState = summary.state;
     }
     scheduleVerify();
     return chain;
@@ -187,7 +166,24 @@ export const HerdrOpencodeBridge = async () => {
       if (isStateEvent(type)) {
         debug(`event type=${type} session=${event?.properties?.sessionID ?? ""}`);
       }
-      applyEvent(model, event);
+      const transitions = applyEventTracked(model, event);
+      for (const transition of transitions) {
+        const notification = notificationForTransition({ config, transition });
+        if (!notification) continue;
+        debug(
+          `notify ${notification.title}: ${notification.body} sound=${notification.sound ?? "none"}`,
+        );
+        chain = chain
+          .then(() =>
+            notify({
+              socketPath,
+              title: notification.title,
+              body: notification.body,
+              sound: notification.sound,
+            }),
+          )
+          .catch(() => {});
+      }
       await flush();
     },
   };

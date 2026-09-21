@@ -4,9 +4,11 @@ import { join } from "node:path";
 
 const DEFAULTS = {
   // "off" | "blocked" | "all" — when to send a herdr notification.
+  // "all" also notifies when any session finishes.
   notify: "blocked",
-  // "none" | "done" | "request" — herdr notification sound.
-  sound: "none",
+  // "none" | "auto" | "done" | "request" — herdr notification sound.
+  // "auto" uses "request" for waiting sessions and "done" for finished ones.
+  sound: "auto",
   // Show per-session counts in the sidebar agent label (zero config needed).
   display: true,
 };
