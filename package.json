@@ -1,6 +1,6 @@
 {
   "name": "opencode-herdr-bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Aggregate opencode session state for Herdr so multi-session panes report accurately.",
   "license": "MIT",

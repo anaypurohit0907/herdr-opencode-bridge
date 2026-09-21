@@ -5,15 +5,18 @@ import {
   applyEvent,
   createModel,
   describeAggregate,
+  displayAgent,
   hasSessions,
   metadataTokens,
+  notificationFor,
+  stateLabels,
 } from "./aggregate.js";
+import { loadConfig } from "./config.js";
 import { notify, readPane, reportAgent, reportMetadata } from "./socket.js";
 
 export const SOURCE = "opencode:herdr-bridge";
 export const AGENT = "opencode";
 const DEBUG = process.env.HERDR_BRIDGE_DEBUG === "1";
-const NOTIFY = process.env.HERDR_BRIDGE_NOTIFY === "1";
 const VERIFY_DELAY_MS = 150;
 const METADATA_TTL_MS = 3_600_000;
 
@@ -52,6 +55,7 @@ export const HerdrOpencodeBridge = async () => {
   }
   debug(`loaded pane=${paneId}`);
 
+  const config = loadConfig();
   const model = createModel();
   let seq = Date.now() * 1000;
   let lastReport;
@@ -60,6 +64,7 @@ export const HerdrOpencodeBridge = async () => {
   let chain = Promise.resolve();
   let verifyTimer;
   let activeTimer;
+  debug(`config ${JSON.stringify(config)}`);
 
   const send = async (state, message) => {
     const ok = await reportAgent({
@@ -123,8 +128,12 @@ export const HerdrOpencodeBridge = async () => {
         const message = describeAggregate(summary);
         chain = chain.then(() => send(summary.state, message)).catch(() => {});
       }
-      const meta = metadataTokens(summary);
-      const metaKey = JSON.stringify(meta);
+      const meta = {
+        ...metadataTokens(summary),
+        ...(config.display ? { display_agent: displayAgent(summary) } : {}),
+      };
+      const labels = stateLabels(model, summary);
+      const metaKey = JSON.stringify({ meta, labels });
       if (metaKey !== lastMeta) {
         lastMeta = metaKey;
         chain = chain
@@ -135,19 +144,28 @@ export const HerdrOpencodeBridge = async () => {
               source: SOURCE,
               agent: AGENT,
               tokens: meta,
+              displayAgent: meta.display_agent,
+              stateLabels: labels,
               ttlMs: METADATA_TTL_MS,
             }),
           )
           .catch(() => {});
       }
-      if (NOTIFY && lastState && lastState !== "blocked" && summary.state === "blocked") {
+      const notification = notificationFor({
+        config,
+        previousState: lastState,
+        state: summary.state,
+        model,
+        summary,
+      });
+      if (notification) {
         chain = chain
           .then(() =>
             notify({
               socketPath,
-              title: "opencode needs input",
-              body: describeAggregate(summary),
-              sound: "request",
+              title: notification.title,
+              body: notification.body,
+              sound: config.sound !== "none" ? config.sound : undefined,
             }),
           )
           .catch(() => {});

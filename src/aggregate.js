@@ -82,7 +82,12 @@ function touch(model, rootID, now) {
 
 export function registerSession(model, info) {
   if (!info?.id) return;
-  model.sessions[info.id] = { id: info.id, parentID: info.parentID };
+  const previous = model.sessions[info.id];
+  model.sessions[info.id] = {
+    id: info.id,
+    parentID: info.parentID,
+    title: typeof info.title === "string" && info.title ? info.title : previous?.title,
+  };
   if (!info.parentID) {
     model.roots[info.id] ??= { state: "unknown", at: 0 };
   }
@@ -170,4 +175,58 @@ export function metadataTokens(summary) {
     oc_sessions: sessions || null,
     oc_attention: summary.counts.blocked ? "waiting" : null,
   };
+}
+
+export function totalSessions({ counts }) {
+  return Object.values(counts).reduce((sum, count) => sum + count, 0);
+}
+
+// Zero-config label: herdr's default agent row shows this without any sidebar
+// configuration, so multi-session panes read differently out of the box.
+export function displayAgent(summary) {
+  const total = totalSessions(summary);
+  if (total <= 1 && !summary.counts.blocked) return "opencode";
+  let label = total > 1 ? `opencode ×${total}` : "opencode";
+  if (summary.counts.blocked) label += " · waiting";
+  return label;
+}
+
+// Visible with the state_text token; human labels for each state.
+export function stateLabels(model, summary) {
+  const labels = {};
+  if (summary.counts.working) labels.working = `${summary.counts.working} working`;
+  if (summary.counts.idle) labels.idle = `${summary.counts.idle} idle`;
+  if (summary.counts.blocked) {
+    labels.blocked = `waiting: ${firstBlockedTitle(model) ?? "session"}`;
+  }
+  return labels;
+}
+
+export function firstBlockedTitle(model) {
+  for (const [id, root] of Object.entries(model.roots)) {
+    if (root.state === "blocked") {
+      const title = model.sessions[id]?.title;
+      if (title) return title.slice(0, 32);
+    }
+  }
+  return undefined;
+}
+
+export function blockedBody(model, summary) {
+  const count = summary.counts.blocked;
+  const title = firstBlockedTitle(model);
+  const sessions = count === 1 ? "1 session" : `${count} sessions`;
+  return title ? `${sessions} waiting · ${title}` : `${sessions} waiting`;
+}
+
+// Pure notification decision: null means send nothing.
+export function notificationFor({ config, previousState, state, model, summary }) {
+  if (config.notify === "off") return null;
+  if (state === "blocked" && previousState !== "blocked") {
+    return { title: "opencode needs input", body: blockedBody(model, summary) };
+  }
+  if (config.notify === "all" && state === "idle" && previousState === "working") {
+    return { title: "opencode finished", body: describeAggregate(summary) };
+  }
+  return null;
 }

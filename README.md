@@ -36,6 +36,58 @@ state to Herdr:
 Session identity reported to Herdr follows the most recently active root session.
 State is only reported when the aggregate changes, so the socket stays quiet.
 
+Beyond the aggregate state:
+
+- **Zero-config label** — the sidebar agent label becomes `opencode ×3` for
+  multi-session panes and `opencode ×3 · waiting` when a session needs input.
+  No config edits required.
+- **Sidebar tokens** — optional `$oc_sessions` / `$oc_attention` tokens if you
+  want counts in a custom row layout.
+- **Session-aware notifications** — when a session becomes blocked, Herdr shows
+  a notification naming the session title (on by default, no sound).
+- **Self-correcting** — if the official integration overwrites the pane after a
+  background session finishes, the bridge reads the pane back and restores the
+  aggregate within ~150 ms, with a slow reconcile while work is active.
+
+## Configuration
+
+Optional file at `~/.config/opencode/herdr-bridge.json`:
+
+```json
+{
+  "notify": "blocked",
+  "sound": "none",
+  "display": true
+}
+```
+
+- `notify`: `"off"` | `"blocked"` (default) | `"all"` — `all` also notifies when
+  every session goes idle after working.
+- `sound`: `"none"` (default) | `"done"` | `"request"` — Herdr notification
+  sound. Left off by default because opencode's own `attention` sounds already
+  cover this; turn it on if you use the bridge without `attention`.
+- `display`: `false` disables the `opencode ×N` label.
+
+Legacy env overrides still work: `HERDR_BRIDGE_NOTIFY=1`, `HERDR_BRIDGE_SOUND`,
+`HERDR_BRIDGE_DISPLAY=0`, plus `HERDR_BRIDGE_DEBUG=1` for tracing.
+
+## Sidebar tokens (optional)
+
+The zero-config label needs nothing. If you want counts in a custom row layout,
+the bridge also reports `$oc_sessions` (`2 working · 1 waiting` style) and
+`$oc_attention` (`waiting` while any session is blocked):
+
+```toml
+[ui.sidebar.agents]
+rows = [
+  ["state_icon", "machine", "workspace", "tab"],
+  ["agent"],
+  [{ token = "$oc_sessions", dim = true }, { token = "$oc_attention", fg = "#f9e2af", bold = true }],
+]
+```
+
+Then `herdr server reload-config`. Full example in `examples/herdr-sidebar.toml`.
+
 ## Install
 
 ```bash
@@ -74,30 +126,6 @@ results, and self-corrections).
 All state logic lives in `src/aggregate.js` with no opencode imports, so it is
 unit-testable. `src/index.js` is a thin V1 server-plugin wrapper; `src/socket.js`
 speaks the newline-delimited JSON pane protocol.
-
-## Sidebar tokens
-
-The bridge reports display-only metadata tokens for the herdr sidebar:
-
-- `$oc_sessions` — `2 working · 1 waiting` style summary of the pane's sessions
-- `$oc_attention` — `waiting` while any session is blocked, empty otherwise
-
-Add them to your agent rows (`examples/herdr-sidebar.toml`):
-
-```toml
-[ui.sidebar.agents]
-rows = [
-  ["state_icon", "machine", "workspace", "tab"],
-  ["agent"],
-  [{ token = "$oc_sessions", dim = true }, { token = "$oc_attention", fg = "#f9e2af", bold = true }],
-]
-```
-
-Then `herdr server reload-config`.
-
-Set `HERDR_BRIDGE_NOTIFY=1` when launching opencode to also send a herdr
-`notification.show` (with request sound) the moment any session becomes blocked.
-Off by default because opencode's own `attention` config already plays sounds.
 
 ## Verification
 

@@ -62,8 +62,19 @@ export function reportAgent({ paneId, socketPath, source, agent, state, seq, mes
   return request(socketPath, "pane.report_agent", params);
 }
 
-export function reportMetadata({ paneId, socketPath, source, agent, tokens, ttlMs }) {
+export function reportMetadata({
+  paneId,
+  socketPath,
+  source,
+  agent,
+  tokens,
+  displayAgent,
+  stateLabels,
+  ttlMs,
+}) {
   const params = { pane_id: paneId, source, agent, tokens };
+  if (displayAgent) params.display_agent = displayAgent;
+  if (stateLabels) params.state_labels = stateLabels;
   if (ttlMs) params.ttl_ms = ttlMs;
   return request(socketPath, "pane.report_metadata", params);
 }
