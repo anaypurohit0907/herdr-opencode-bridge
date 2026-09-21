@@ -44,6 +44,25 @@ describe("session registry", () => {
     expect(rootOf(model, "missing")).toBeUndefined();
   });
 
+  test("message info never registers as a session", () => {
+    const model = createModel();
+    applyEvent(model, {
+      type: "message.updated",
+      properties: { info: { id: "msg_abc", sessionID: "ses_a" }, sessionID: "ses_a" },
+    });
+    expect(hasSessions(model)).toBe(false);
+  });
+
+  test("session.updated registers a root and keeps its title", () => {
+    const model = createModel();
+    applyEvent(model, {
+      type: "session.updated",
+      properties: { info: { id: "ses_a", title: "auth refactor" }, sessionID: "ses_a" },
+    });
+    expect(hasSessions(model)).toBe(true);
+    expect(model.sessions.ses_a.title).toBe("auth refactor");
+  });
+
   test("removing a root drops its state", () => {
     const model = createModel();
     root(model, "A");

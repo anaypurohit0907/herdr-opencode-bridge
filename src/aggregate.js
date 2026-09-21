@@ -109,7 +109,14 @@ export function applyChatMessage(model, sessionID, now = Date.now()) {
 export function applyEvent(model, event, now = Date.now()) {
   const type = event?.type;
   const properties = event?.properties ?? {};
-  if (properties.info?.id) registerSession(model, properties.info);
+  // Only session events carry session info. message.updated also exposes an
+  // info object (the message), which must never register as a session.
+  if (
+    (type === "session.created" || type === "session.updated") &&
+    properties.info?.id
+  ) {
+    registerSession(model, properties.info);
+  }
 
   const sessionID = sessionIDFromProperties(properties);
   if (type === "session.deleted") {
